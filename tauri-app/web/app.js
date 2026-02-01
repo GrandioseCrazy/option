@@ -30,20 +30,12 @@ const app = {
       },
       alertPrice: null,
       alerts: [],
-      history: {
-        loading: false,
-        error: '',
-        data: []
-      },
       pagination: {
         page: 1,
         pageSize: 10,
         pageSizes: [10, 20, 50, 100]
       }
     });
-
-    const historyChartEl = ref(null);
-    let historyChart;
 
     const fetchChain = async () => {
       const symbol = state.symbol.trim().toUpperCase();
@@ -52,7 +44,6 @@ const app = {
         return;
       }
 
-      fetchHistory(symbol);
       state.loading = true;
       state.error = '';
       try {
@@ -83,25 +74,6 @@ const app = {
         state.error = error.message;
       } finally {
         state.loading = false;
-      }
-    };
-
-    const fetchHistory = async (symbol) => {
-      state.history.loading = true;
-      state.history.error = '';
-      try {
-        const response = await fetch(`/api/stock/history/${encodeURIComponent(symbol)}`);
-        if (!response.ok) {
-          throw new Error(`行情请求失败: ${response.status}`);
-        }
-        const payload = await response.json();
-        state.history.data = Array.isArray(payload.data) ? payload.data : [];
-      } catch (error) {
-        state.history.error = error.message;
-        state.history.data = [];
-      } finally {
-        state.history.loading = false;
-        scheduleChartUpdate();
       }
     };
 
@@ -286,53 +258,7 @@ const app = {
       return value.toFixed(digits);
     };
 
-    const scheduleChartUpdate = () => {
-      requestAnimationFrame(() => {
-        renderHistoryChart();
-      });
-    };
-
-    const renderHistoryChart = () => {
-      if (!historyChart) return;
-      const data = state.history.data;
-      if (!data || !data.length) {
-        historyChart.clear();
-        return;
-      }
-
-      const seriesData = data.map((item) => [item.date, item.close]);
-      historyChart.setOption({
-        title: { text: '近一年行情走势', left: 'center' },
-        tooltip: {
-          trigger: 'axis',
-          formatter: (params) => {
-            const point = params?.[0];
-            if (!point) return '';
-            const price = Array.isArray(point.data) ? point.data[1] : point.data;
-            return `${point.axisValueLabel}<br/>收盘价: ${formatMoney(price, 2)}`;
-          }
-        },
-        xAxis: { type: 'time' },
-        yAxis: { type: 'value', scale: true },
-        series: [
-          {
-            name: '收盘价',
-            type: 'line',
-            data: seriesData,
-            smooth: true,
-            showSymbol: false,
-            areaStyle: { opacity: 0.12 }
-          }
-        ],
-        grid: { left: 50, right: 20, top: 50, bottom: 40 }
-      });
-    };
-
     onMounted(() => {
-      historyChart = echarts.init(historyChartEl.value);
-      window.addEventListener('resize', () => {
-        historyChart.resize();
-      });
       fetchChain();
     });
 
@@ -371,7 +297,6 @@ const app = {
       metrics,
       riskMetrics,
       greekNote,
-      historyChartEl,
       selectOption,
       formatNumber,
       formatPercent,
@@ -455,88 +380,6 @@ const app = {
           </div>
         </div>
 
-        <div class="panel">
-          <div class="panel-title">计算结果</div>
-          <el-form label-position="top" size="small">
-            <el-form-item label="标的价格">
-              <el-input-number v-model="state.inputs.spot" :min="0" :step="0.1" style="width: 100%" />
-            </el-form-item>
-            <el-form-item label="隐含波动率(%)">
-              <el-input-number v-model="state.inputs.volatilityPct" :min="0" :step="0.1" style="width: 100%" />
-            </el-form-item>
-            <el-form-item label="无风险利率(%)">
-              <el-input-number v-model="state.inputs.riskFreePct" :min="0" :step="0.1" style="width: 100%" />
-            </el-form-item>
-            <el-form-item label="股息率(%)">
-              <el-input-number v-model="state.inputs.dividendPct" :min="0" :step="0.1" style="width: 100%" />
-            </el-form-item>
-            <el-form-item label="仓位方向">
-              <el-select v-model="state.position" style="width: 100%">
-                <el-option label="卖方" value="SELL" />
-                <el-option label="买方" value="BUY" />
-              </el-select>
-            </el-form-item>
-          </el-form>
-
-          <div v-if="metrics" class="metric-grid">
-            <div class="metric-card">
-              <h4>行权概率</h4>
-              <p>{{ formatPercent(metrics.probItm, 2) }}</p>
-            </div>
-            <div class="metric-card">
-              <h4>卖方年化收益率</h4>
-              <p>{{ formatPercent(metrics.annualizedYield, 2) }}</p>
-            </div>
-            <div class="metric-card">
-              <h4>Delta</h4>
-              <p>{{ formatNumber(metrics.delta, 4) }}</p>
-            </div>
-            <div class="metric-card">
-              <h4>Gamma</h4>
-              <p>{{ formatNumber(metrics.gamma, 4) }}</p>
-            </div>
-            <div class="metric-card">
-              <h4>Theta(日)</h4>
-              <p>{{ formatNumber(metrics.thetaPerDay, 4) }}</p>
-            </div>
-            <div class="metric-card">
-              <h4>Vega(1%)</h4>
-              <p>{{ formatNumber(metrics.vega, 4) }}</p>
-            </div>
-          </div>
-          <div v-else class="placeholder">请选择期权或补全输入参数以计算</div>
-
-          <div v-if="riskMetrics" style="margin-top: 16px">
-            <div class="panel-title">风险指标</div>
-            <div class="metric-grid">
-              <div class="metric-card">
-                <h4>盈亏平衡点</h4>
-                <p>{{ formatMoney(riskMetrics.breakeven, 4) }}</p>
-              </div>
-              <div class="metric-card">
-                <h4>最大收益</h4>
-                <p>{{ riskMetrics.maxProfit }}</p>
-              </div>
-              <div class="metric-card">
-                <h4>最大亏损</h4>
-                <p>{{ riskMetrics.maxLoss }}</p>
-              </div>
-              <div class="metric-card">
-                <h4>安全边际</h4>
-                <p>{{ formatPercent(riskMetrics.safetyMargin, 2) }}</p>
-              </div>
-            </div>
-            <p class="placeholder" style="margin-top: 8px">{{ greekNote }}</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-title">近一年行情走势</div>
-        <p v-if="state.history.error" class="placeholder">{{ state.history.error }}</p>
-        <p v-else-if="state.history.loading" class="placeholder">行情加载中...</p>
-        <p v-else-if="!state.history.data.length" class="placeholder">暂无行情数据</p>
-        <div ref="historyChartEl" class="chart"></div>
       </div>
     </div>
   `

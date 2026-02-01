@@ -75,7 +75,7 @@ body {
 .main-grid {
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  grid-template-columns: 1fr;
 }
 
 .main-grid > * {
