@@ -6,6 +6,15 @@ const PORT = process.env.PORT || 3000;
 const API_BASE = process.env.FUTU_API_BASE || 'http://localhost:8081';
 
 app.use(express.json());
+app.use((req, res, next) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  return next();
+});
 
 function normalizeStooqSymbol(symbol) {
   const cleaned = String(symbol || '').trim().toLowerCase();

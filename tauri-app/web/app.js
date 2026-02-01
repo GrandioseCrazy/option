@@ -1,3 +1,5 @@
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+
 const { createApp, reactive, ref, computed, onMounted, watch } = Vue;
 const math = window.math;
 
@@ -54,8 +56,8 @@ const app = {
       state.loading = true;
       state.error = '';
       try {
-        const response = await fetch(
-          `http://127.0.0.1:3000/api/option/chain/${encodeURIComponent(symbol)}`
+        const response = await tauriFetch(
+          `http://127.0.0.1:8081/market/option/chain/${encodeURIComponent(symbol)}`
         );
         if (!response.ok) {
           throw new Error(`API请求失败: ${response.status}`);
